@@ -67,6 +67,12 @@ def onTTSModelConfigChanged(ttsModelConfigFileDialog):
     global ttsModelConfig
     global cleanersDescription
 
+    if ttsModelConfigFileDialog is None:
+        speakerNameDropdown = gradio.update(choices=[], value="")
+        symbolsDataset = gradio.update(samples=[])
+        cleanersLabel = gradio.update(label="language", value="")
+        return speakerNameDropdown, symbolsDataset, cleanersLabel
+    
     ttsModelConfig = utils.get_hparams_from_file(ttsModelConfigFileDialog.name)
     speakers = ttsModelConfig.speakers if 'speakers' in ttsModelConfig.keys() else ['0']
     symbols = [[s] for s in ttsModelConfig.symbols]
@@ -81,10 +87,13 @@ def onTTSModelConfigChanged(ttsModelConfigFileDialog):
     return speakerDropDown, symbolsDataset, cleanersLabel
 
 def onSymbolClick(sentenceTextArea, symbolsDataset):
+    global ttsModelConfig
+
     return gradio.update(value=sentenceTextArea + ttsModelConfig.symbols[symbolsDataset])
 
 def onIsSymbolClick(isSymbolCheckbox, sentenceTextArea, previousSentenceText):
     global ttsModelConfig
+    
     if isSymbolCheckbox:
         newTextValue = _clean_text(sentenceTextArea, ttsModelConfig.data.text_cleaners) 
         return newTextValue, sentenceTextArea
@@ -109,31 +118,31 @@ def main():
                     
                     ttsModelFileDialog = gradio.Textbox(label="select tts model, text path by self")
                     
-                    
-                    
                     sentenceTextArea = gradio.TextArea(label="Text",
                                             placeholder="Type your sentence here",
                                             value="こんにちわ。")
-                    isSymbolCheckbox = gradio.Checkbox(label="Is Symbol")
+                    
 
                     speakerNameDropdown = gradio.Dropdown(label="Speaker")
                     
+                    isSymbolCheckbox = gradio.Checkbox(label="Is Symbol")
                     symbolsDataset = gradio.Dataset(label="Symbols", 
                                                   components=["text"],
                                                   type="index",
-                                                  samples=[])
+                                                  samples=[],
+                                                  visible=True)
                     
                     vocalSpeedSlider = gradio.Slider(minimum=0.1, maximum=5, 
                                                     value=1, step=0.1, 
                                                     label="Vocal Speed")
                     
                     with gradio.Row():
-                        emotionFileDialog = gradio.File(label="select emotion mp3, wav, empty won't have emotion effect")
+                        emotionFileDialog = gradio.File(label="select emotion mp3, wav, empty won't have emotion effect",
+                                                        file_types=[".mp3", ".wav"])
                         emotionAudioPlayer = gradio.Audio(visible=False)
                         emotionFileDialog.change(fn=onEmotionFileChange,
                                                  inputs=[emotionFileDialog],
                                                  outputs=[emotionAudioPlayer])
-                                                        #, file_types=[".mp3", ".wav"])
                     
                     emotionModelFileDialog = gradio.Textbox(label="select emotion .onnx model, text path by self")
                     
