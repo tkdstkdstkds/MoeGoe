@@ -23,7 +23,7 @@ def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerN
     speakersCount = ttsModelConfig.data.n_speakers if 'n_speakers' in ttsModelConfig.data.keys() else 0
     symbolsCount = len(ttsModelConfig.symbols) if 'symbols' in ttsModelConfig.keys() else 0
 
-    emotionEnabled = bool(emotionFileDialog.strip())
+    emotionEnabled = emotionFileDialog is not None
     synthesizerTrn = SynthesizerTrn(
         symbolsCount,
         ttsModelConfig.data.filter_length // 2 + 1,
@@ -34,7 +34,7 @@ def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerN
     synthesizerTrn.eval()
 
     utils.load_checkpoint(ttsModelFileDialog, synthesizerTrn)
-
+    
     emotion = None
     if(emotionEnabled):
         # do emotion extracting
@@ -91,6 +91,12 @@ def onIsSymbolClick(isSymbolCheckbox, sentenceTextArea, previousSentenceText):
     else:
         return previousSentenceText, previousSentenceText
 
+def onEmotionFileChange(emotionFileDialog):
+    if emotionFileDialog is None:
+        return gradio.update(value=None, visible=False)
+    else:
+        return gradio.update(value=emotionFileDialog.name, visible=True)
+
 
 def main(): 
     app = gradio.Blocks()
@@ -121,8 +127,14 @@ def main():
                                                     value=1, step=0.1, 
                                                     label="Vocal Speed")
                     
-                    emotionFileDialog = gradio.Textbox(label="select emotion mp3, wav, empty won't have emotion effect")
+                    with gradio.Row():
+                        emotionFileDialog = gradio.File(label="select emotion mp3, wav, empty won't have emotion effect")
+                        emotionAudioPlayer = gradio.Audio(visible=False)
+                        emotionFileDialog.change(fn=onEmotionFileChange,
+                                                 inputs=[emotionFileDialog],
+                                                 outputs=[emotionAudioPlayer])
                                                         #, file_types=[".mp3", ".wav"])
+                    
                     emotionModelFileDialog = gradio.Textbox(label="select emotion .onnx model, text path by self")
                     
                     cleanersLabel = gradio.Label(label="language")
