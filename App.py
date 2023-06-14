@@ -1,4 +1,6 @@
-from text import text_to_sequence, _clean_text
+from cProfile import label
+from altair import value
+from text import cleaners, text_to_sequence, _clean_text
 from models import SynthesizerTrn
 from torch import no_grad, LongTensor, FloatTensor
 
@@ -63,6 +65,8 @@ def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerN
 
 def onTTSModelConfigChanged(ttsModelConfigFileDialog):
     global ttsModelConfig
+    global cleanersDescription
+
     ttsModelConfig = utils.get_hparams_from_file(ttsModelConfigFileDialog.name)
     speakers = ttsModelConfig.speakers if 'speakers' in ttsModelConfig.keys() else ['0']
     symbols = [[s] for s in ttsModelConfig.symbols]
@@ -71,8 +75,10 @@ def onTTSModelConfigChanged(ttsModelConfigFileDialog):
                          value=speakers[0],
                          label="Speaker")
     symbolsDataset = gradio.update(samples=symbols)
+    cleanersLabel = gradio.update(label=ttsModelConfig.data.text_cleaners[0],
+                                  value=cleanersDescription[ttsModelConfig.data.text_cleaners[0]])
                                                   
-    return speakerDropDown, symbolsDataset
+    return speakerDropDown, symbolsDataset, cleanersLabel
 
 def onSymbolClick(sentenceTextArea, symbolsDataset):
     return gradio.update(value=sentenceTextArea + ttsModelConfig.symbols[symbolsDataset])
@@ -119,10 +125,12 @@ def main():
                                                         #, file_types=[".mp3", ".wav"])
                     emotionModelFileDialog = gradio.Textbox(label="select emotion .onnx model, text path by self")
                     
+                    cleanersLabel = gradio.Label(label="language")
+
                     # add event
                     ttsModelConfigFileDialog.change(fn=onTTSModelConfigChanged,
                                                     inputs=[ttsModelConfigFileDialog],
-                                                    outputs=[speakerNameDropdown, symbolsDataset])
+                                                    outputs=[speakerNameDropdown, symbolsDataset, cleanersLabel])
                     
                     symbolsDataset.click(fn=onSymbolClick,
                                           inputs=[sentenceTextArea, symbolsDataset],
@@ -154,6 +162,22 @@ if __name__ == '__main__':
 
     #tts model config vars
     ttsModelConfig = None
+
+    cleanersDescription = \
+    {
+        "japanese_cleaners": "only support japanese, sentense don't need any tag",
+        "japanese_cleaners2": "only support japanese, sentense don't need any tag",
+        "korean_cleaners": "only support korean, sentense don't need any tag",
+        "chinese_cleaners": "only support chinese, sentense don't need any tag",
+        "zh_ja_mixture_cleaners": "support chinese and japanese, sentense pattern should be [ZH]中文[ZH] [JA]こんにちは[JA]",
+        "sanskrit_cleaners": "only support sanskrit, sentense don't need any tag",
+        "cjks_cleaners": "support chinese japanese korean and sanskrit, sentense pattern should be [ZH]中文[ZH] [JA]こんにちは[JA] [KO]안녕하세요[KO] [SA]नमस्ते[SA]",
+        "cjke_cleaners": "support chinese japanese korean and english, sentense pattern should be [ZH]中文[ZH] [JA]こんにちは[JA] [KO]안녕하세요[KO] [EN]English[EN]",
+        "cjke_cleaners2": "support chinese japanese korean and english, sentense pattern should be [ZH]中文[ZH] [JA]こんにちは[JA] [KO]안녕하세요[KO] [EN]English[EN]",
+        "thai_cleaners": "only support thai, don't need any tag",
+        "shanghainese_cleaners": "only support shanghainese, don't need any tag",
+        "chinese_dialect_cleaners": "support chinese japanese shanghainese cantonese and english, sentense pattern should be [ZH]中文[ZH] [JA]こんにちは[JA] [SH]上海話[SH] [GD]廣東話[GD] [EN]English[EN]"
+    }
 
     main()
 
