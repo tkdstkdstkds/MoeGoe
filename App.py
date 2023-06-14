@@ -15,51 +15,66 @@ import audonnx
 import os
 import librosa
 import re
+import traceback
 
 def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerNameDropdown, vocalSpeedSlider,
                 emotionFileDialog, emotionModelFileDialog):
     global ttsModelConfig
-    
-    speakersCount = ttsModelConfig.data.n_speakers if 'n_speakers' in ttsModelConfig.data.keys() else 0
-    symbolsCount = len(ttsModelConfig.symbols) if 'symbols' in ttsModelConfig.keys() else 0
 
-    emotionEnabled = emotionFileDialog is not None
-    synthesizerTrn = SynthesizerTrn(
-        symbolsCount,
-        ttsModelConfig.data.filter_length // 2 + 1,
-        ttsModelConfig.train.segment_size // ttsModelConfig.data.hop_length,
-        n_speakers=speakersCount,
-        emotion_embedding=emotionEnabled,
-        **ttsModelConfig.model)
-    synthesizerTrn.eval()
-
-    utils.load_checkpoint(ttsModelFileDialog, synthesizerTrn)
+    if ttsModelConfig is None:
+        return "Missing tts config!", None
     
-    emotion = None
-    if(emotionEnabled):
-        # do emotion extracting
-        emotionModel = audonnx.load(os.path.dirname(emotionModelFileDialog))
-        audio16000, samplingRate = librosa.load(emotionFileDialog, sr=16000, mono=True)
-        emotionSamplingResult = emotionModel(audio16000, samplingRate)['hidden_states']
-        emotionNpyPath = re.sub(r'\..*$', '', emotionFileDialog)
-        numpy.save(emotionNpyPath, emotionSamplingResult.squeeze(0))
-        emotion = FloatTensor(emotionSamplingResult)
-
-    # if language is not None:
-    #         text = language_marks[language] + text + language_marks[language]
-    speakerIndex = ttsModelConfig.speakers.index(speakerNameDropdown)
+    if not ttsModelFileDialog.strip():
+        return "Missing tts model!", None
     
-    stn_tst = MoeGoe.get_text(sentenceTextArea, ttsModelConfig, isSymbolCheckbox)
-    
-    with no_grad():
-        x_tst = stn_tst.unsqueeze(0)
-        x_tst_lengths = LongTensor([stn_tst.size(0)])
-        sid = LongTensor([speakerIndex])
-        audio = synthesizerTrn.infer(x_tst, x_tst_lengths, sid=sid, noise_scale=.667, noise_scale_w=0.8,
-                            length_scale=1.0 / vocalSpeedSlider, emotion_embedding=emotion)[0][0, 0].data.cpu().float().numpy()
-    del stn_tst, x_tst, x_tst_lengths, sid
+    if emotionFileDialog is not None and not emotionModelFileDialog.strip():
+        return "Missing emotion model", None
 
-    return "Success", (ttsModelConfig.data.sampling_rate, audio)
+    try:
+        speakersCount = ttsModelConfig.data.n_speakers if 'n_speakers' in ttsModelConfig.data.keys() else 0
+        symbolsCount = len(ttsModelConfig.symbols) if 'symbols' in ttsModelConfig.keys() else 0
+
+        emotionEnabled = emotionFileDialog is not None
+        synthesizerTrn = SynthesizerTrn(
+            symbolsCount,
+            ttsModelConfig.data.filter_length // 2 + 1,
+            ttsModelConfig.train.segment_size // ttsModelConfig.data.hop_length,
+            n_speakers=speakersCount,
+            emotion_embedding=emotionEnabled,
+            **ttsModelConfig.model)
+        synthesizerTrn.eval()
+
+        utils.load_checkpoint(ttsModelFileDialog, synthesizerTrn)
+        
+        emotion = None
+        if(emotionEnabled):
+            # do emotion extracting
+            emotionModel = audonnx.load(os.path.dirname(emotionModelFileDialog))
+            audio16000, samplingRate = librosa.load(emotionFileDialog.name, sr=16000, mono=True)
+            emotionSamplingResult = emotionModel(audio16000, samplingRate)['hidden_states']
+            emotionNpyPath = re.sub(r'\..*$', '', emotionFileDialog.name)
+            numpy.save(emotionNpyPath, emotionSamplingResult.squeeze(0))
+            emotion = FloatTensor(emotionSamplingResult)
+
+        # if language is not None:
+        #         text = language_marks[language] + text + language_marks[language]
+        speakerIndex = ttsModelConfig.speakers.index(speakerNameDropdown)
+        
+        stn_tst = MoeGoe.get_text(sentenceTextArea, ttsModelConfig, isSymbolCheckbox)
+        
+        with no_grad():
+            x_tst = stn_tst.unsqueeze(0)
+            x_tst_lengths = LongTensor([stn_tst.size(0)])
+            sid = LongTensor([speakerIndex])
+            audio = synthesizerTrn.infer(x_tst, x_tst_lengths, sid=sid, noise_scale=.667, noise_scale_w=0.8,
+                                length_scale=1.0 / vocalSpeedSlider, emotion_embedding=emotion)[0][0, 0].data.cpu().float().numpy()
+        del stn_tst, x_tst, x_tst_lengths, sid
+
+        return "Success", (ttsModelConfig.data.sampling_rate, audio)
+    except Exception:
+        stackTrace = traceback.format_exc()
+        print(stackTrace)
+        return stackTrace, None
 
 
 
@@ -68,6 +83,7 @@ def onTTSModelConfigChanged(ttsModelConfigFileDialog):
     global cleanersDescription
 
     if ttsModelConfigFileDialog is None:
+        ttsModelConfig = None
         speakerNameDropdown = gradio.update(choices=[], value="")
         symbolsDataset = gradio.update(samples=[])
         cleanersLabel = gradio.update(label="language", value="")
@@ -93,7 +109,7 @@ def onSymbolClick(sentenceTextArea, symbolsDataset):
 
 def onIsSymbolClick(isSymbolCheckbox, sentenceTextArea, previousSentenceText):
     global ttsModelConfig
-    
+
     if isSymbolCheckbox:
         newTextValue = _clean_text(sentenceTextArea, ttsModelConfig.data.text_cleaners) 
         return newTextValue, sentenceTextArea
