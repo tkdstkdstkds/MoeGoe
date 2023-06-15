@@ -18,7 +18,7 @@ import re
 import traceback
 
 def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerNameDropdown, vocalSpeedSlider,
-                emotionFileDialog, emotionModelFileDialog):
+                emotionFileDialog, emotionModelFileDialog, noiseScaleSlider, noiseScaleWidthSlider):
     global ttsModelConfig
 
     if ttsModelConfig is None:
@@ -66,7 +66,7 @@ def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerN
             x_tst = stn_tst.unsqueeze(0)
             x_tst_lengths = LongTensor([stn_tst.size(0)])
             sid = LongTensor([speakerIndex])
-            audio = synthesizerTrn.infer(x_tst, x_tst_lengths, sid=sid, noise_scale=.667, noise_scale_w=0.8,
+            audio = synthesizerTrn.infer(x_tst, x_tst_lengths, sid=sid, noise_scale=noiseScaleSlider, noise_scale_w=noiseScaleWidthSlider,
                                 length_scale=1.0 / vocalSpeedSlider, emotion_embedding=emotion)[0][0, 0].data.cpu().float().numpy()
         del stn_tst, x_tst, x_tst_lengths, sid
 
@@ -147,10 +147,17 @@ def main():
                                                   type="index",
                                                   samples=[],
                                                   visible=True)
-                    
-                    vocalSpeedSlider = gradio.Slider(minimum=0.1, maximum=5, 
-                                                    value=1, step=0.1, 
-                                                    label="Vocal Speed")
+                    with gradio.Row():
+                        vocalSpeedSlider = gradio.Slider(minimum=0.1, maximum=5, 
+                                                        value=1, step=0.1, 
+                                                        label="Vocal Speed")
+                        
+                        noiseScaleSlider = gradio.Slider(minimum=0.1, maximum=3, 
+                                                        value=0.667, step=0.1, 
+                                                        label="Noise Scale")
+                        noiseScaleWidthSlider = gradio.Slider(minimum=0.1, maximum=3, 
+                                                        value=0.8, step=0.1, 
+                                                        label="Stretched Vocal")
                     
                     with gradio.Row():
                         emotionFileDialog = gradio.File(label="select emotion mp3, wav, empty won't have emotion effect",
@@ -187,7 +194,7 @@ def main():
                     generateAudioButton.click(
                         fn=ttsGenerate,
                         inputs=[ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerNameDropdown, vocalSpeedSlider,
-                                emotionFileDialog, emotionModelFileDialog], # noqa
+                                emotionFileDialog, emotionModelFileDialog, noiseScaleSlider, noiseScaleWidthSlider], # noqa
                         outputs=[processTextbox, audioOutputPlayer])
 
     webbrowser.open(f"http://127.0.0.1:{server_port}?__theme=dark")
