@@ -220,7 +220,9 @@ if __name__ == '__main__':
         "cjke_cleaners2": "support chinese japanese korean and english, sentense pattern should be [ZH]中文[ZH] [JA]こんにちは[JA] [KO]안녕하세요[KO] [EN]English[EN]",
         "thai_cleaners": "only support thai, don't need any tag",
         "shanghainese_cleaners": "only support shanghainese, don't need any tag",
-        "chinese_dialect_cleaners": "support chinese japanese shanghainese cantonese and english, sentense pattern should be [ZH]中文[ZH] [JA]こんにちは[JA] [SH]上海話[SH] [GD]廣東話[GD] [EN]English[EN]"
+        
+        "chinese_dialect_cleaners": "support chinese_dialects japanese and english, \
+        sentense pattern should be 日本語[JA], English[EN], 普通话[ZH], 上海话[SH], 广东话[GD], 苏州话[SZ], 无锡话[WX], 杭州话[HZ], 绍兴话[SX], 宁波话[NB], 靖江话[JJ], 宜兴话[YX], 嘉定话[JD], 真如话[ZR], 平湖话[PH], 桐乡话[TX], 嘉善话[JS], 硖石话[HN], 临平话[LP], 萧山话[XS], 富阳话[FY], 儒嶴话[RA], 慈溪话[CX], 三门话[SM], 天台话[TT], 温州话[WZ], 遂昌话[SC], 游埠话[YB]"
     }
 
     main()
