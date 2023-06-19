@@ -121,6 +121,14 @@ def onEmotionFileChange(emotionFileDialog):
         return gradio.update(value=None, visible=False)
     else:
         return gradio.update(value=emotionFileDialog.name, visible=True)
+    
+def onIsDefaultEmotionModelCheckbox(isDefaultEmotionModelCheckbox):
+    global ttsModelConfig
+
+    if isDefaultEmotionModelCheckbox:
+        return gradio.update(visible=False)
+    else:
+        return gradio.update(visible=True)
 
 
 def main(): 
@@ -167,7 +175,15 @@ def main():
                                                  inputs=[emotionFileDialog],
                                                  outputs=[emotionAudioPlayer])
                     
-                    emotionModelFileDialog = gradio.Textbox(label="select emotion .onnx model, text path by self")
+                    with gradio.Row():
+                        isDefaultEmotionModelCheckbox = gradio.Checkbox(label="Use default Emotion Model", value=True)
+                        emotionModelFileDialog = gradio.Textbox(label="select emotion .onnx model, text path by self",
+                                                                value="./emotionModel/model.onnx",
+                                                                visible=False)
+                        isDefaultEmotionModelCheckbox.change(fn=onIsDefaultEmotionModelCheckbox,
+                                                 inputs=[isDefaultEmotionModelCheckbox],
+                                                 outputs=[emotionModelFileDialog])
+                        
                     
                     cleanersLabel = gradio.Label(label="language")
 
