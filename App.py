@@ -18,7 +18,7 @@ import re
 import traceback
 
 def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerNameDropdown, vocalSpeedSlider,
-                emotionFileDialog, emotionModelFileDialog, noiseScaleSlider, noiseScaleWidthSlider):
+                emotionFileDialog, emotionModelFileDialog, emotionId, noiseScaleSlider, noiseScaleWidthSlider):
     global ttsModelConfig
 
     if ttsModelConfig is None:
@@ -48,13 +48,17 @@ def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerN
         
         emotion = None
         if(emotionEnabled):
-            # do emotion extracting
-            emotionModel = audonnx.load(os.path.dirname(emotionModelFileDialog))
-            audio16000, samplingRate = librosa.load(emotionFileDialog.name, sr=16000, mono=True)
-            emotionSamplingResult = emotionModel(audio16000, samplingRate)['hidden_states']
-            emotionNpyPath = re.sub(r'\..*$', '', emotionFileDialog.name)
-            numpy.save(emotionNpyPath, emotionSamplingResult.squeeze(0))
-            emotion = FloatTensor(emotionSamplingResult)
+            if emotionFileDialog.name.endswith('.npy'):
+                emotionColletion = numpy.load(emotionFileDialog.name)
+                emotion = FloatTensor(emotionColletion[int(emotionId)]).unsqueeze(0)
+            else:
+                # do emotion extracting
+                emotionModel = audonnx.load(os.path.dirname(emotionModelFileDialog))
+                audio16000, samplingRate = librosa.load(emotionFileDialog.name, sr=16000, mono=True)
+                emotionSamplingResult = emotionModel(audio16000, samplingRate)['hidden_states']
+                emotionNpyPath = re.sub(r'\..*$', '', emotionFileDialog.name)
+                numpy.save(emotionNpyPath, emotionSamplingResult.squeeze(0))
+                emotion = FloatTensor(emotionSamplingResult)
 
         # if language is not None:
         #         text = language_marks[language] + text + language_marks[language]
@@ -84,15 +88,18 @@ def onTTSModelConfigChanged(ttsModelConfigFileDialog):
 
     if ttsModelConfigFileDialog is None:
         ttsModelConfig = None
+        newTTSModelConfigFileDialog = gradio.update(label="select tts config")
         speakerNameDropdown = gradio.update(choices=[], value="")
         symbolsDataset = gradio.update(samples=[])
         cleanersLabel = gradio.update(label="language", value="")
-        return speakerNameDropdown, symbolsDataset, cleanersLabel
+        return newTTSModelConfigFileDialog, speakerNameDropdown, symbolsDataset, cleanersLabel
     
     ttsModelConfig = utils.get_hparams_from_file(ttsModelConfigFileDialog.name)
     speakers = ttsModelConfig.speakers if 'speakers' in ttsModelConfig.keys() else ['0']
     symbols = [[s] for s in ttsModelConfig.symbols]
+
     # render speaker again
+    newTTSModelConfigFileDialog = gradio.update(label=ttsModelConfigFileDialog.name)
     speakerDropDown = gradio.update(choices=speakers, 
                          value=speakers[0],
                          label="Speaker")
@@ -100,7 +107,7 @@ def onTTSModelConfigChanged(ttsModelConfigFileDialog):
     cleanersLabel = gradio.update(label=ttsModelConfig.data.text_cleaners[0],
                                   value=cleanersDescription[ttsModelConfig.data.text_cleaners[0]])
                                                   
-    return speakerDropDown, symbolsDataset, cleanersLabel
+    return newTTSModelConfigFileDialog, speakerDropDown, symbolsDataset, cleanersLabel
 
 def onSymbolClick(sentenceTextArea, symbolsDataset):
     global ttsModelConfig
@@ -118,9 +125,14 @@ def onIsSymbolClick(isSymbolCheckbox, sentenceTextArea, previousSentenceText):
 
 def onEmotionFileChange(emotionFileDialog):
     if emotionFileDialog is None:
-        return gradio.update(value=None, visible=False)
+        return gradio.update(value=None, visible=False), gradio.update(value=0, visible=False)
     else:
-        return gradio.update(value=emotionFileDialog.name, visible=True)
+        if emotionFileDialog.name.endswith(".npy"):
+            emotion = numpy.load(emotionFileDialog.name)
+            emotionSize = emotion.size/1024
+            return gradio.update(value=None, visible=False), gradio.update(label=f"size = {emotionSize}", value=0, visible=True)
+        else:
+            return gradio.update(value=emotionFileDialog.name, visible=True), gradio.update(value=0, visible=False)
     
 def onIsDefaultEmotionModelCheckbox(isDefaultEmotionModelCheckbox):
     global ttsModelConfig
@@ -169,11 +181,12 @@ def main():
                     
                     with gradio.Row():
                         emotionFileDialog = gradio.File(label="select emotion mp3, wav, empty won't have emotion effect",
-                                                        file_types=[".mp3", ".wav"])
+                                                        file_types=[".mp3", ".wav", ".npy"])
                         emotionAudioPlayer = gradio.Audio(visible=False)
+                        emotionId = gradio.Number(interactive=True, visible=False)
                         emotionFileDialog.change(fn=onEmotionFileChange,
                                                  inputs=[emotionFileDialog],
-                                                 outputs=[emotionAudioPlayer])
+                                                 outputs=[emotionAudioPlayer, emotionId])
                     
                     with gradio.Row():
                         isDefaultEmotionModelCheckbox = gradio.Checkbox(label="Use default Emotion Model", value=True)
@@ -190,7 +203,7 @@ def main():
                     # add event
                     ttsModelConfigFileDialog.change(fn=onTTSModelConfigChanged,
                                                     inputs=[ttsModelConfigFileDialog],
-                                                    outputs=[speakerNameDropdown, symbolsDataset, cleanersLabel])
+                                                    outputs=[ttsModelConfigFileDialog, speakerNameDropdown, symbolsDataset, cleanersLabel])
                     
                     symbolsDataset.click(fn=onSymbolClick,
                                           inputs=[sentenceTextArea, symbolsDataset],
@@ -210,7 +223,7 @@ def main():
                     generateAudioButton.click(
                         fn=ttsGenerate,
                         inputs=[ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerNameDropdown, vocalSpeedSlider,
-                                emotionFileDialog, emotionModelFileDialog, noiseScaleSlider, noiseScaleWidthSlider], # noqa
+                                emotionFileDialog, emotionModelFileDialog, emotionId, noiseScaleSlider, noiseScaleWidthSlider], # noqa
                         outputs=[processTextbox, audioOutputPlayer])
 
     webbrowser.open(f"http://127.0.0.1:{server_port}?__theme=dark")
