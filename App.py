@@ -50,7 +50,11 @@ def ttsGenerate(ttsModelFileDialog, sentenceTextArea, isSymbolCheckbox, speakerN
         if(emotionEnabled):
             if emotionFileDialog.name.endswith('.npy'):
                 emotionColletion = numpy.load(emotionFileDialog.name)
-                emotion = FloatTensor(emotionColletion[int(emotionId)]).unsqueeze(0)
+                emotionSize = emotionColletion.size/1024
+                if emotionSize > 1:
+                    emotion = FloatTensor(emotionColletion[int(emotionId)]).unsqueeze(0)
+                else:
+                    emotion = FloatTensor(emotionColletion).unsqueeze(0)
             else:
                 # do emotion extracting
                 emotionModel = audonnx.load(os.path.dirname(emotionModelFileDialog))
