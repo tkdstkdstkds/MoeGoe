@@ -13,6 +13,7 @@ import csv
 import MoeGoe
 from scipy.io.wavfile import write
 import os
+import argparse
 
 default_model_path = "BatchConvertModels/"
 batch_convert_result_path = "BatchConvertResult/"
@@ -39,9 +40,9 @@ def ttsGenerate(csv_row, voice_config_map, synthesizerTrn_map):
     write(f"{batch_convert_result_path}{csv_row['voice_file']}", voice_config.data.sampling_rate, audio)
     print(f"id:{csv_row['id']} - {csv_row['voice_file']} generated.")
 
-def main():
+def main(args):
     # load csv file and path = 'test.csv'
-    csv_file = open('test.csv', encoding='utf-8', mode='r')
+    csv_file = open(args.csv_path, encoding='utf-8', mode='r')
 
     # print csv_file fieldnames
     csv_reader = csv.DictReader(csv_file)
@@ -84,7 +85,7 @@ def main():
     # use multi-hreading to generate tts
     # I try to use multi-processing, but it will cause
     # Cowardly refusing to serialize non-leaf tensor which requires_grad, since autograd does not support crossing process boundaries.
-    with ThreadPool(100) as pool:
+    with ThreadPool(args.thread_count) as pool:
         # prepare multiprocessing args
         args = []
         for csv_row in filter_rows:
@@ -99,5 +100,12 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Python Command Line Argument Parser')
+    # add --csv_path argument
+    parser.add_argument('--csv_path', type=str, required=True, help='csv file path')
+    # add --thread_count argument
+    parser.add_argument('--thread_count', type=int, default=100, help='thread count')
+    args = parser.parse_args()
+
+    main(args)
 
