@@ -29,11 +29,18 @@ def ttsGenerate(csv_row, voice_config_map, synthesizerTrn_map):
         # convert text to tensor
         stn_tst = MoeGoe.get_text(f"[JA]{csv_row['text']}[JA]", voice_config, False)
         
+        # csv_row['voice_speed'] to float
+        voice_speed = 1.0 / float(csv_row['voice_speed'])
+        # csv_row['voice_noise'] to float
+        voice_noise = float(csv_row['voice_noise'])
+        # csv_row['voice_noise_w'] to float 
+        voice_noise_w = float(csv_row['voice_noise_w'])
+
         x_tst = stn_tst.unsqueeze(0)
         x_tst_lengths = LongTensor([stn_tst.size(0)])
         sid = LongTensor([speakerIndex])
         audio = synthesizerTrn.infer(x_tst, x_tst_lengths, sid=sid, noise_scale=0.6, noise_scale_w=0.8,
-                            length_scale=1)[0][0, 0].data.cpu().float().numpy()
+                            length_scale=voice_speed)[0][0, 0].data.cpu().float().numpy()
     del stn_tst, x_tst, x_tst_lengths, sid
 
     # save audio
