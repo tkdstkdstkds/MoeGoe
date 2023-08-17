@@ -42,7 +42,7 @@ def ttsGenerate(csv_row, voice_config_map, synthesizerTrn_map):
 
 def main(args):
     # load csv file and path = 'test.csv'
-    csv_file = open(args.csv_path, encoding='utf-8', mode='r')
+    csv_file = open(args.csv_path, encoding='UTF-8-sig', mode='r')
 
     # print csv_file fieldnames
     csv_reader = csv.DictReader(csv_file)
